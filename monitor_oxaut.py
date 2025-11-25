@@ -31,6 +31,7 @@ TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 logged_on = False
 history = deque(maxlen=HISTORY_MAXLEN)
 last_price = None
+update_counter = 0
 
 # ----------------------------------------
 
@@ -82,7 +83,7 @@ def check_drops(history, now, current_price):
     return alerts
 
 async def monitor_job(context: ContextTypes.DEFAULT_TYPE):
-    global logged_on, history, last_price
+    global logged_on, history, last_price, update_counter
     if not logged_on:
         return
     try:
@@ -103,6 +104,10 @@ async def monitor_job(context: ContextTypes.DEFAULT_TYPE):
                 )
             )
             await send_message(context, context.job.chat_id, msg, is_alert=True)
+        # Periodic update every 5 minutes (30 * 10s)
+        update_counter += 1
+        if update_counter % 30 == 0:
+            await send_message(context, context.job.chat_id, f"Precio actual: {price:.2f} USD - Online")
     except Exception as e:
         print(f"[WARN] Error obteniendo precio: {e}")
 
