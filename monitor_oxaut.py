@@ -96,7 +96,7 @@ def check_drops(history, now, current_price, config):
     return alerts
 
 async def monitor_job(context: ContextTypes.DEFAULT_TYPE):
-    global logged_on, history, last_price, update_counter
+    global logged_on, price_history, last_price, update_counter
     if not logged_on:
         return
     try:
@@ -105,8 +105,8 @@ async def monitor_job(context: ContextTypes.DEFAULT_TYPE):
         last_price = price
         print(f"[{now.isoformat()}] Precio oXAUT: {price:.2f} USD")
         log_price(now, price)
-        history.append((now, price))
-        alerts = check_drops(history, now, price, config)
+        price_history.append((now, price))
+        alerts = check_drops(price_history, now, price, config)
         if alerts:
             msg = (
                 f"POZO ACTIVADO en oXAUT a las {now.isoformat()}.\n"
@@ -125,16 +125,16 @@ async def monitor_job(context: ContextTypes.DEFAULT_TYPE):
         print(f"[WARN] Error obteniendo precio: {e}")
 
 async def logon(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    global logged_on, history, last_price
+    global logged_on, price_history, last_price
     chat_id = update.effective_chat.id
     if logged_on:
         await update.message.reply_text("Ya estás logueado.")
         return
     logged_on = True
-    if hasattr(history, 'clear'):
-        history.clear()
+    if hasattr(price_history, 'clear'):
+        price_history.clear()
     else:
-        history = deque(maxlen=HISTORY_MAXLEN)  # Reinicializar si hay problema
+        price_history = deque(maxlen=HISTORY_MAXLEN)  # Reinicializar si hay problema
     try:
         price = get_price_usd()
         last_price = price
@@ -182,8 +182,8 @@ async def setthreshold(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.message.reply_text("Uso: /setthreshold <porcentaje> (ej: /setthreshold 20)")
 
 async def history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    global history
-    if not history:
+    global price_history
+    if not price_history:
         await update.message.reply_text("No hay historial disponible.")
         return
     minutes = 5  # default
@@ -192,9 +192,9 @@ async def history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             minutes = int(context.args[0])
         except ValueError:
             pass
-    # Show last N minutes (approx 6 entries per minute)
-    entries = int(minutes * 6)
-    recent = list(history)[-entries:]
+    # Show last N minutes (dynamic calculation)
+    entries = int(minutes * 60 / config.interval_seconds)
+    recent = list(price_history)[-entries:]
     if not recent:
         await update.message.reply_text("No hay datos suficientes para ese período.")
         return
