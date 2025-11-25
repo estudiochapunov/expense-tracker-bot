@@ -1,0 +1,6 @@
+python-telegram-bot[job-queue]
+huggingface-hub
+requests
+pandas
+python-dotenv
+Pillow
